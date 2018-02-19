@@ -6,22 +6,32 @@ from tqdm import tqdm_notebook
 strokes = np.load('../data/strokes.npy')
 stroke = strokes[0]
 
-epochs = 100
-learning_rate = 0.001
-batch_size = 10
-hidden_layer_size = 256
+epochs = 10
+learning_rate = 0.01
+batch_size = 100
+hidden_layer_size = 700
 number_of_layers = 1
 dropout_rate = 0.5
 number_of_classes = 3
 gradient_clip_margin = 4
-window_size = 50
+window_size = 57
 
-def window_data(data, window_size):
+def prep_data(data):
     X = []
     y = []
+    all_data = []
     
+    for quote in data:
+        for pos in quote:
+            all_data.append(pos)
+    return all_data
+
+
+def get_windows(data, start):
     i = 0
-    while (i + window_size) <= len(data) - 1:
+    X = []
+    y = []
+    while (i + window_size) <= (batch_size + window_size) - 1:
         X.append(data[i:i+window_size])
         y.append(data[i+window_size])
         i += 1
@@ -63,7 +73,7 @@ def optimize_loss(logits, targets, learning_rate, grad_clip_margin):
     train_optimizer = optimizer.apply_gradients(zip(gradients, tf.trainable_variables()))
     return loss, train_optimizer
 
-                                          
+                                         
 class recurrent_neural_net(object):
     def __init__(self):
     
@@ -78,22 +88,21 @@ class recurrent_neural_net(object):
     
 tf.reset_default_graph()
 model = recurrent_neural_net()
+saver = tf.train.Saver()
 
 session =  tf.Session()
 session.run(tf.global_variables_initializer())
 
 
-def train(X_train, y_train):
-
+def train(all_data):
     for i in tqdm_notebook(range(epochs)):
         traind_scores = []
         ii = 0
         epoch_loss = []
-        while(ii + batch_size) <= len(X_train):
-            X_batch = X_train[ii:ii+batch_size]
-            y_batch = y_train[ii:ii+batch_size]
-            o, c, _ = session.run([model.logits, model.loss, model.opt], feed_dict={model.inputs:X_batch, model.targets:y_batch})
+        while(ii + batch_size) <= len(all_data):
 
+            X_batch, y_batch = get_windows(all_data, ii)
+            o, c, _ = session.run([model.logits, model.loss, model.opt], feed_dict={model.inputs:X_batch, model.targets:y_batch})
             epoch_loss.append(c)
             traind_scores.append(o)
             ii += batch_size
@@ -101,44 +110,42 @@ def train(X_train, y_train):
             print('Epoch {}/{}'.format(i, epochs), ' Current loss: {}'.format(np.mean(epoch_loss)))
 
 def test(X_test):       
+
     tests = []
+    print(len(X_test))
+    print((X_test))
     i = 0
-    while i+batch_size <= len(X_test):
-        o = session.run([model.logits], feed_dict={model.inputs:X_test[i:i+batch_size]})
+    output_length = 700
+    while i + batch_size <= output_length:
+        o = session.run([model.logits], feed_dict={model.inputs:X_test})
         i += batch_size
         tests.append(o)
-    return tests
+        
+    print(len(tests))
+    output_test = np.asarray(tests)
+    output_test = output_test.reshape(output_length, number_of_classes)
+
+    std_data = np.std(output_test[:, 0])
+    mean_data = np.mean(output_test[:, 0])
+    for count, item in enumerate(output_test):
+        if item[0] <= mean_data + std_data:
+            output_test[count][0] = int(0)
+        else:
+            output_test[count][0] = int(1)
+            
+    return output_test
 
 def generate_unconditionally(random_seed=1):
     # Input:
     #   random_seed - integer
-    X, y = window_data(strokes[0], window_size)
-
-    X_train  = np.array(X[:100])
-    y_train = np.array(y[:100])
-
-    X_test = np.array(X[:100])
-    y_test = np.array(y[:100])
-
-    print("X_train size: {}".format(X_train.shape))
-    print("y_train size: {}".format(y_train.shape))
-    print("X_test size: {}".format(X_test.shape))
-    print("y_test size: {}".format(y_test.shape))
-
-    train(X_train, y_train)
+    
+    # X and y data are dynaically created to minimize risk of running out of memorry 
+    data = prep_data(strokes[:1])
     
 
-    temp_test = np.asarray(test(X_test))
-    temp_test = (temp_test).reshape(len(X_test),3)
-
-
-    for count, item in enumerate(temp_test):
-        if item[0] < 0.5:
-            temp_test[count][0] = 0
-        else:
-            temp_test[count][0] = 1
-    print(temp_test.shape)
-    print(temp_test)
+    train(data)
+    
+    temp_test = test(get_windows(data, 0)[0])
     
     
     # Output:
