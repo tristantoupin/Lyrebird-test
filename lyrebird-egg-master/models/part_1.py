@@ -4,8 +4,8 @@ import tensorflow as tf
 from tqdm import tqdm_notebook
 from numpy import random
 
-epochs = 80
-learning_rate = 0.01
+epochs = 100
+learning_rate = 0.001
 batch_size = 100
 hidden_layer_size = 256
 number_of_layers = 1
@@ -93,7 +93,7 @@ def prep_model(restore = None):
     session.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
     
-    if not (restore_model):
+    if (restore_model):
         saver.restore(session, "models/" + restore_model + ".ckpt")
         print("Model restored.")
 
@@ -143,4 +143,4 @@ def test(input_):
             else:
                 temp_test[count][0] = int(1)
                 
-    return temp_test
+    return temp_test, start
