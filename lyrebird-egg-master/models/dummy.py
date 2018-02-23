@@ -12,11 +12,9 @@ strokes = np.load('../data/strokes.npy')
 strings_path = "../data/sentenses.txt"
 stroke = strokes[0]
 
-
 '''
 Check part_1.py for all helper methods (same folder)
 '''
-
 def generate_unconditionally(random_seed=6):    
     # restore model and setup variables
     prep_model("model_v1")
@@ -42,7 +40,6 @@ def generate_unconditionally(random_seed=6):
     Train the model
     '''
 #     train(X_train, y_train, "model_v2")
-
     
     '''
     generate the test output based on the seed
